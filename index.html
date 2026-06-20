@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; font-size: 14px; }
+    .topbar { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .topbar h1 span { font-size: 20px; }
+    .sync-btn { background: #111827; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .sync-btn:hover { background: #374151; }
+    .sync-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
+    .stat-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .stat-value { font-size: 26px; font-weight: 600; }
+    .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; transition: all 0.15s; }
+    .filter-btn.active { background: #111827; color: #fff; border-color: #111827; }
+    .add-btn { margin-left: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .add-btn:hover { background: #f3f4f6; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f9fafb; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-Applied   { background: #dbeafe; color: #1e3a8a; }
+    .badge-Reviewing { background: #ede9fe; color: #4c1d95; }
+    .badge-Interview { background: #fef3c7; color: #78350f; }
+    .badge-Offer     { background: #dcfce7; color: #14532d; }
+    .badge-Rejected  { background: #fee2e2; color: #7f1d1d; }
+    .company { font-weight: 500; }
+    .role { color: #6b7280; }
+    .date { color: #9ca3af; font-size: 12px; }
+    .notes { color: #6b7280; font-size: 12px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .action-btn { background: none; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #6b7280; margin-right: 4px; }
+    .action-btn:hover { background: #f3f4f6; }
+    .delete-btn { background: none; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px; color: #ef4444; }
+    .delete-btn:hover { background: #fee2e2; }
+    .empty { text-align: center; padding: 48px; color: #9ca3af; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; padding: 24px; width: 420px; max-width: 95vw; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+    .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 5px; }
+    .field input, .field select { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; color: #111827; background: #fff; }
+    .field input:focus, .field select:focus { outline: none; border-color: #6366f1; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+    .btn-cancel { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+    .btn-save { background: #111827; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 60; align-items: center; justify-content: center; }
+    .confirm-overlay.open { display: flex; }
+    .confirm-modal { background: #fff; border-radius: 14px; padding: 24px; width: 340px; max-width: 95vw; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+    .confirm-modal h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .confirm-modal p { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-delete { background: #ef4444; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-delete:hover { background: #dc2626; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #111827; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; z-index: 100; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1><span>💼</span> Job tracker</h1>
+  <button class="sync-btn" id="sync-btn" onclick="syncGmail()">
+    <span id="sync-icon">↻</span> Sync Gmail
+  </button>
+</div>
+
+<div class="main">
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-value" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label">Applied</div><div class="stat-value" id="s-applied">—</div></div>
+    <div class="stat"><div class="stat-label">Reviewing</div><div class="stat-value" id="s-reviewing">—</div></div>
+    <div class="stat"><div class="stat-label">Interview</div><div class="stat-value" id="s-interview">—</div></div>
+    <div class="stat"><div class="stat-label">Offer</div><div class="stat-value" id="s-offer">—</div></div>
+    <div class="stat"><div class="stat-label">Rejected</div><div class="stat-value" id="s-rejected">—</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="filter-btn active" onclick="setFilter('All', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('Applied', this)">Applied</button>
+    <button class="filter-btn" onclick="setFilter('Reviewing', this)">Reviewing</button>
+    <button class="filter-btn" onclick="setFilter('Interview', this)">Interview</button>
+    <button class="filter-btn" onclick="setFilter('Offer', this)">Offer</button>
+    <button class="filter-btn" onclick="setFilter('Rejected', this)">Rejected</button>
+    <button class="add-btn" onclick="openModal()">+ Add application</button>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Applied</th>
+          <th>Last updated</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="7"><div class="empty">Loading…</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit/Add modal -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title">Add application</h2>
+    <div class="field"><label>Company</label><input id="f-company" placeholder="e.g. Google" /></div>
+    <div class="field"><label>Role</label><input id="f-role" placeholder="e.g. Data Analyst" /></div>
+    <div class="field"><label>Status</label>
+      <select id="f-status">
+        <option>Applied</option><option>Reviewing</option><option>Interview</option><option>Offer</option><option>Rejected</option>
+      </select>
+    </div>
+    <div class="field"><label>Notes</label><input id="f-notes" placeholder="Optional" /></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-modal">
+    <h2>Delete application?</h2>
+    <p id="confirm-text">This will permanently remove this entry from your sheet.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-delete" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  var allJobs = [];
+  var activeFilter = 'All';
+  var editingRow = null;
+  var deletingRow = null;
+
+  function loadData() {
+    google.script.run
+      .withSuccessHandler(function(data) { allJobs = data; render(); })
+      .withFailureHandler(function(e) { showToast('Failed to load: ' + e.message); })
+      .getSheetData();
+  }
+
+  function render() {
+    var filtered = activeFilter === 'All' ? allJobs : allJobs.filter(function(j) { return j[2] === activeFilter; });
+    var body = document.getElementById('table-body');
+    if (!filtered.length) {
+      body.innerHTML = '<tr><td colspan="7"><div class="empty">No applications found.</div></td></tr>';
+    } else {
+      body.innerHTML = filtered.map(function(j) {
+        return '<tr>' +
+          '<td class="company">' + esc(j[0]) + '</td>' +
+          '<td class="role">' + esc(j[1]) + '</td>' +
+          '<td><span class="badge badge-' + esc(j[2]) + '">' + esc(j[2]) + '</span></td>' +
+          '<td class="date">' + esc(j[3]) + '</td>' +
+          '<td class="date">' + esc(j[4]) + '</td>' +
+          '<td class="notes" title="' + esc(j[5]) + '">' + esc(j[5]) + '</td>' +
+          '<td style="white-space:nowrap;">' +
+            '<button class="action-btn" onclick="editEntry(' + j[7] + ')">Edit</button>' +
+            '<button class="delete-btn" onclick="askDelete(' + j[7] + ', \'' + esc(j[0]) + '\')">Delete</button>' +
+          '</td>' +
+          '</tr>';
+      }).join('');
+    }
+    document.getElementById('s-total').textContent = allJobs.length;
+    document.getElementById('s-applied').textContent = allJobs.filter(function(j){ return j[2]==='Applied'; }).length;
+    document.getElementById('s-reviewing').textContent = allJobs.filter(function(j){ return j[2]==='Reviewing'; }).length;
+    document.getElementById('s-interview').textContent = allJobs.filter(function(j){ return j[2]==='Interview'; }).length;
+    document.getElementById('s-offer').textContent = allJobs.filter(function(j){ return j[2]==='Offer'; }).length;
+    document.getElementById('s-rejected').textContent = allJobs.filter(function(j){ return j[2]==='Rejected'; }).length;
+  }
+
+  function setFilter(f, el) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    el.classList.add('active');
+    render();
+  }
+
+  function syncGmail() {
+    var btn = document.getElementById('sync-btn');
+    btn.disabled = true;
+    document.getElementById('sync-icon').innerHTML = '<span class="spinner"></span>';
+    google.script.run
+      .withSuccessHandler(function(msg) {
+        showToast(msg);
+        loadData();
+        btn.disabled = false;
+        document.getElementById('sync-icon').textContent = '↻';
+      })
+      .withFailureHandler(function(e) {
+        showToast('Sync failed: ' + e.message);
+        btn.disabled = false;
+        document.getElementById('sync-icon').textContent = '↻';
+      })
+      .syncGmailAndReturn();
+  }
+
+  function openModal(row) {
+    editingRow = row || null;
+    var j = row ? allJobs.find(function(x){ return x[7] === row; }) : null;
+    document.getElementById('modal-title').textContent = row ? 'Edit application' : 'Add application';
+    document.getElementById('f-company').value = j ? j[0] : '';
+    document.getElementById('f-role').value = j ? j[1] : '';
+    document.getElementById('f-status').value = j ? j[2] : 'Applied';
+    document.getElementById('f-notes').value = j ? j[5] : '';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+  function saveEntry() {
+    var data = {
+      company: document.getElementById('f-company').value.trim(),
+      role: document.getElementById('f-role').value.trim(),
+      status: document.getElementById('f-status').value,
+      notes: document.getElementById('f-notes').value.trim(),
+      row: editingRow
+    };
+    if (!data.company || !data.role) { showToast('Fill in company and role.'); return; }
+    google.script.run
+      .withSuccessHandler(function() { closeModal(); loadData(); showToast(editingRow ? 'Updated.' : 'Added.'); })
+      .withFailureHandler(function(e) { showToast('Error: ' + e.message); })
+      .saveEntry(data);
+  }
+
+  function editEntry(row) { openModal(row); }
+
+  function askDelete(row, company) {
+    deletingRow = row;
+    document.getElementById('confirm-text').textContent = 'This will permanently remove "' + company + '" from your sheet.';
+    document.getElementById('confirm-overlay').classList.add('open');
+  }
+
+  function closeConfirm() {
+    deletingRow = null;
+    document.getElementById('confirm-overlay').classList.remove('open');
+  }
+
+  function confirmDelete() {
+    if (!deletingRow) return;
+    google.script.run
+      .withSuccessHandler(function() { closeConfirm(); loadData(); showToast('Deleted.'); })
+      .withFailureHandler(function(e) { showToast('Error: ' + e.message); closeConfirm(); })
+      .deleteEntry(deletingRow);
+  }
+
+  function showToast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 3000);
+  }
+
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.getElementById('confirm-overlay').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
+
+  loadData();
+</script>
+</body>
+</html>
